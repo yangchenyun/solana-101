@@ -10,7 +10,7 @@ use solana_program::{
     sysvar::{rent::Rent, Sysvar},
 };
 
-use crate::{error::EscrowError, instruction::EscrowInstruction, state::Escrow};
+use crate::{instruction::EscrowInstruction, state::Escrow};
 
 pub struct Processor;
 
@@ -81,7 +81,7 @@ impl Processor {
             Some(&pda),
             spl_token::instruction::AuthorityType::AccountOwner,
             initializer.key,
-            &[&initializer.key], // signer, support multi-sig
+            &[initializer.key], // signer, support multi-sig
         )?;
 
         msg!("Calling the token program to transfer token account ownership...");
