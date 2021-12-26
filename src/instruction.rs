@@ -41,6 +41,6 @@ impl EscrowInstruction {
             .and_then(|slice| slice.try_into().ok())
             .map(u64::from_le_bytes)
             .ok_or(InvalidInstruction)?;
-        Ok(amount);
+        Ok(amount)
     }
 }
