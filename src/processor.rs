@@ -22,6 +22,7 @@ impl Processor {
     ) -> ProgramResult {
         let instruction = EscrowInstruction::unpack(instruction_data)?;
 
+        // use instruction to dispatch procedure
         match instruction {
             EscrowInstruction::InitEscrow { amount } => {
                 msg!("Instruction: InitEscrow");
@@ -42,7 +43,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Needs to be marked as writable
+        // TODO: how and should I check this is writable
         let temp_token_account = next_account_info(account_info_iter)?;
 
         let token_to_receive_account = next_account_info(account_info_iter)?;
@@ -52,7 +53,8 @@ impl Processor {
 
         let escrow_account = next_account_info(account_info_iter)?;
 
-        let rent = &Rent::from_account_info(next_account_info(account_info_iter)?)?;
+        let sysvar_rent = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(sysvar_rent)?;
 
         if !rent.is_exempt(escrow_account.lamports(), escrow_account.data_len()) {
             return Err(ProgramError::AccountNotRentExempt);
@@ -74,7 +76,7 @@ impl Processor {
         let (pda, _bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
 
         let token_program = next_account_info(account_info_iter)?;
-        // This generates a program
+        // spl instruction to change authority
         let owner_change_ix = spl_token::instruction::set_authority(
             token_program.key,
             temp_token_account.key,
