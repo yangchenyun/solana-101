@@ -6,6 +6,21 @@ use solana_program::program_error::ProgramError;
 pub enum EscrowError {
     #[error("Invalid Instruction")]
     InvalidInstruction,
+
+    #[error("mint mismatch")]
+    ExpectedMintMismatch,
+
+    #[error("amount mismatch")]
+    ExpectedAmountMismatch,
+
+    #[error("not enough balance")]
+    NotEnoughBalanceToSent,
+
+    #[error("Invalid Account Data")]
+    InvalidAccountData,
+
+    #[error("Amount Overflow")]
+    AmountOverflow,
 }
 
 impl From<EscrowError> for ProgramError {

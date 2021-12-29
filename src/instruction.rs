@@ -20,6 +20,27 @@ pub enum EscrowInstruction {
         /// The amount party A expects to receive of token Y
         amount: u64,
     },
+
+    // Executes the trading by
+    //
+    // - Validates the trade would take place properly
+    // - Executes the trade and move assets to both token owner's account
+    // - Returns excessive amount to escrow's owner
+    // - Closing the escrow acount
+    // - Closing the temp acount
+    //
+    // Accounts expected:
+    //
+    /// 0. `[signer]` The account of the person initializing the exchange
+    /// 1. `[w]` Request's token account which has sent, to receive if fail
+    /// 2. `[w]` Request's token account to receive
+    /// 3. `[w]` The escrow temp account, would move all amount to 2
+    /// 4. `[w]` The initializer account, what for?
+    /// 5. `[w]` The initializer token account to receive
+    /// 6. `[w]` The escrow account
+    /// 7. `[]` token program
+    /// 8. `[]` pda
+    Exchange { amount: u64 },
 }
 
 impl EscrowInstruction {
@@ -29,6 +50,9 @@ impl EscrowInstruction {
 
         Ok(match tag {
             0 => Self::InitEscrow {
+                amount: Self::unpack_amount(rest)?,
+            },
+            1 => Self::Exchange {
                 amount: Self::unpack_amount(rest)?,
             },
             _ => return Err(InvalidInstruction.into()),
