@@ -34,7 +34,93 @@ impl Processor {
                 msg!("Instruction: Exchange");
                 Self::process_exchange(accounts, amount, program_id)
             }
+            EscrowInstruction::CancelEscrow { amount: _ } => {
+                msg!("Instruction: Cancel");
+                Self::process_cancel(accounts, program_id)
+            }
         }
+    }
+
+    fn process_cancel(accounts: &[AccountInfo], program_id: &Pubkey) -> ProgramResult {
+        let acc_iter = &mut accounts.iter();
+
+        let owner = next_account_info(acc_iter)?;
+
+        if !owner.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let owner_token_to_receive_acc = next_account_info(acc_iter)?;
+        let owner_token_to_receive_acc_info =
+            Account::unpack(&owner_token_to_receive_acc.try_borrow_data()?)?;
+
+        let escrow_temp_token_acc = next_account_info(acc_iter)?;
+        let escrow_temp_token_acc_info =
+            Account::unpack(&escrow_temp_token_acc.try_borrow_data()?)?;
+        let (pda, bump_seed) = Pubkey::find_program_address(&[b"escrow"], program_id);
+
+        let escrow_acc = next_account_info(acc_iter)?;
+        let escrow_acc_info = Escrow::unpack(&escrow_acc.try_borrow_data()?)?;
+
+        let token_program = next_account_info(acc_iter)?;
+        let pda_acc = next_account_info(acc_iter)?;
+
+        if owner_token_to_receive_acc_info.mint != escrow_temp_token_acc_info.mint {
+            return Err(EscrowError::ExpectedMintMismatch.into());
+        }
+
+        let tx_to_owner_ix = spl_token::instruction::transfer(
+            token_program.key,
+            escrow_temp_token_acc.key,
+            owner_token_to_receive_acc.key,
+            &pda,
+            &[&pda],
+            escrow_temp_token_acc_info.amount,
+        )?;
+
+        msg!("Calling the token program to return tokens to the escrow's owner.");
+        invoke_signed(
+            &tx_to_owner_ix,
+            &[
+                escrow_temp_token_acc.clone(),
+                owner_token_to_receive_acc.clone(),
+                pda_acc.clone(),
+                token_program.clone(),
+            ],
+            &[&[&b"escrow"[..], &[bump_seed]]],
+        )?;
+
+        let close_temp_ix = spl_token::instruction::close_account(
+            token_program.key,
+            escrow_temp_token_acc.key,
+            owner.key,
+            &pda,
+            &[&pda],
+        )?;
+
+        msg!("Calling the token program close temp.");
+        invoke_signed(
+            &close_temp_ix,
+            &[
+                escrow_temp_token_acc.clone(),
+                owner.clone(),
+                pda_acc.clone(),
+                token_program.clone(),
+            ],
+            &[&[&b"escrow"[..], &[bump_seed]]],
+        )?;
+
+        msg!("Closing the escrow account...");
+        **owner.lamports.borrow_mut() = owner
+            .lamports()
+            .checked_add(escrow_acc.lamports())
+            .ok_or(EscrowError::AmountOverflow)?;
+
+        **escrow_acc.lamports.borrow_mut() = 0;
+        // Setting it to empty fields
+        *escrow_acc.try_borrow_mut_data()? = &mut [];
+
+        Ok(())
     }
 
     fn process_exchange(

@@ -41,6 +41,18 @@ pub enum EscrowInstruction {
     /// 7. `[]` token program
     /// 8. `[]` pda
     Exchange { amount: u64 },
+
+    // Executes the cancel by
+    //
+    // Accounts expected:
+    //
+    /// 0. `[signer]` The account of the person initializing the exchange
+    /// 1. `[w]` Owner's return token acc
+    /// 2. `[w]` Escrow temp token acc
+    /// 3. `[w]` The escrow account
+    /// 4. `[]` token program
+    /// 5. `[]` pda
+    CancelEscrow { amount: u64 },
 }
 
 impl EscrowInstruction {
@@ -55,6 +67,7 @@ impl EscrowInstruction {
             1 => Self::Exchange {
                 amount: Self::unpack_amount(rest)?,
             },
+            2 => Self::CancelEscrow { amount: 0 },
             _ => return Err(InvalidInstruction.into()),
         })
     }
